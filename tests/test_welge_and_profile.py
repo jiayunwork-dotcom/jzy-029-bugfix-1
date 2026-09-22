@@ -30,6 +30,51 @@ def test_shock_speed_positive_and_bounded(standard_params):
     assert t.shock_speed > 0
 
 
+def test_tangent_identity_unequal_corey_exponents():
+    """幂次不相等时切点恒等式照样钉死（回归：df/dt 括号项曾把 nw/no 互换，
+    nw==no 时碰巧正确，幂次一拉开切点和激波速度就一起漂）。
+
+    关键：不能只用服务自己的解析导数自证（错了也和激波速度自洽），
+    必须用 fractional_flow 本身做中心差分独立反推当地斜率。
+    """
+    cases = [
+        # 用户复现算例：nw=3, no=2
+        CoreyParams(1.0, 5.0, 0.2, 0.2, 0.3, 0.8, 3.0, 2.0),
+        # 幂次交换：nw=2, no=3
+        CoreyParams(1.0, 5.0, 0.2, 0.2, 0.3, 0.8, 2.0, 3.0),
+        # 差距拉得更开的两组
+        CoreyParams(0.4, 3.0, 0.1, 0.25, 0.25, 0.95, 4.0, 1.5),
+        CoreyParams(2.0, 0.8, 0.15, 0.3, 0.9, 0.6, 1.5, 4.0),
+    ]
+    h = 1e-6
+    for p in cases:
+        t = find_welge_tangent(p)
+        # 切点落在可动开区间
+        assert p.swc < t.swf < p.s_orw
+        assert 0.0 < t.t_f < 1.0
+        # 割线斜率 == 激波速度 == 自报 slope（服务内部自洽）
+        secant = t.f_swf / (t.swf - p.swc)
+        assert t.shock_speed == pytest.approx(secant, rel=1e-10)
+        assert t.slope == pytest.approx(secant, rel=1e-10)
+        # 解析导数在切点处等于割线斜率
+        assert df_dsw(t.swf, p) == pytest.approx(secant, rel=1e-8)
+        # 独立校验：对分流函数本身数值微分，必须等于激波速度
+        num_slope = (fractional_flow(t.swf + h, p)
+                     - fractional_flow(t.swf - h, p)) / (2.0 * h)
+        assert num_slope == pytest.approx(t.shock_speed, rel=1e-6)
+
+
+def test_rarefaction_xi_equals_df_dsw_unequal_exponents():
+    """幂次不相等时，激波后方稀疏波每一点的 ξ 也必须真等于当地 df/dSw。"""
+    p = CoreyParams(1.0, 5.0, 0.2, 0.2, 0.3, 0.8, 3.0, 2.0)
+    prof = solve_profile(p)
+    for pt in prof.rarefaction[::8]:
+        assert pt.xi == pytest.approx(df_dsw(pt.sw, p), rel=1e-9)
+    # 稀疏波末端精确落在切点上，ξ 等于激波速度
+    assert prof.rarefaction[-1].sw == pytest.approx(prof.swf)
+    assert prof.rarefaction[-1].xi == pytest.approx(prof.shock_speed)
+
+
 def test_tangent_line_starts_at_swc_zero(standard_params):
     t = find_welge_tangent(standard_params)
     (x0, y0), _ = t.tangent_line

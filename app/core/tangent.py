@@ -5,11 +5,13 @@
 
     f(tf) / tf = f'(tf)        即   h(t) = t·f'(t) - f(t) = 0
 
-激波（前缘）无因次速度：
+激波（前缘）无因次速度就是切线斜率，按真实饱和度坐标计算：
 
-    V_shock = f(Swf) / (Swf - Swc) = f'(Swf) 的切线斜率 = g(tf)/... 实为 g(tf)/L 的 L 倍，
-    即 V_shock = g(tf)，其中 g(t) = f(t)/t（注意 t = (Sw-Swc)/L，
-    故 f(Swf)/(Swf-Swc) = f(tf)/(L·tf) = g(tf)/L？——见下，按真实坐标算）。
+    V_shock = f(Swf) / (Swf - Swc) = df/dSw|_{Swf}
+
+归一化坐标下 f(Swf)/(Swf-Swc) = f(tf)/(L·tf) = g(tf)/L，
+而 df/dSw = (1/L)·df/dt，两者都含因子 1/L，故切线条件
+t·f'(t) = f(t) 与真实坐标恒等式严格等价，不随 L 改变。
 
 严格按需求钉死的校验：
     V_shock == f(Swf) / (Swf - Swc)
