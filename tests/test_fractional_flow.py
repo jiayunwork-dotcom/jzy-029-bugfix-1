@@ -60,6 +60,17 @@ def test_analytic_derivative_matches_finite_difference(standard_params):
         assert df_dsw(sw, p) == pytest.approx(fd, rel=1e-6)
 
 
+def test_analytic_derivative_matches_fd_for_unequal_exponents():
+    """幂次不相等时解析导数同样必须对上有限差分（nw/no 挂反的回归钉点）。"""
+    h = 1e-7
+    for nw, no in ((3.0, 2.0), (2.0, 3.0)):
+        p = CoreyParams(1.0, 5.0, 0.2, 0.2, 0.3, 0.8, nw, no)
+        for t in (0.2, 0.5, 0.8):
+            sw = p.swc + t * p.mobile_span
+            fd = (fractional_flow(sw + h, p) - fractional_flow(sw - h, p)) / (2 * h)
+            assert df_dsw(sw, p) == pytest.approx(fd, rel=1e-6)
+
+
 def test_mobility_definition(symmetric_params):
     p = symmetric_params
     sw = 0.5

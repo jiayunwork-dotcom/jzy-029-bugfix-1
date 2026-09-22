@@ -62,7 +62,7 @@ def df_dt(t: float, p: CoreyParams) -> float:
         k
         * t ** (p.nw - 1.0)
         * (1.0 - t) ** (p.no - 1.0)
-        * (p.no * (1.0 - t) + p.nw * t)
+        * (p.nw * (1.0 - t) + p.no * t)
         / denom**2
     )
 

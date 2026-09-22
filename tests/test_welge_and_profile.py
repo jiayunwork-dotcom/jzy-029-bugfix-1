@@ -7,6 +7,48 @@ from app.core.solution import solve_profile, sw_at_xi
 from app.core.tangent import NoTangentError, find_welge_tangent
 
 
+# 幂次不相等的物性：df/dt 括号里 nw/no 一旦挂反，切点就会漂、
+# 自报斜率只与错误导数自洽而不切在真实分流曲线上（回归档）。
+UNEQUAL_EXPONENT_CASES = [
+    CoreyParams(1.0, 5.0, 0.2, 0.2, 0.3, 0.8, 3.0, 2.0),
+    CoreyParams(1.0, 5.0, 0.2, 0.2, 0.3, 0.8, 2.0, 3.0),
+]
+
+
+@pytest.mark.parametrize("p", UNEQUAL_EXPONENT_CASES)
+def test_tangent_slope_identity_with_unequal_exponents(p):
+    """幂次不相等时，切点处真实曲线的当地斜率必须等于割线斜率（激波速度）。
+
+    交叉验证三路独立来源：
+      1. 割线 f(Swf)/(Swf-Swc)（Welge 切线定义）；
+      2. 解析 df/dSw（服务自报 slope 字段）；
+      3. 直接对分流函数 f(Sw) 做高精度中心差分（独立于解析导数实现）。
+    """
+    t = find_welge_tangent(p)
+    secant = t.f_swf / (t.swf - p.swc)
+
+    assert p.swc < t.swf < p.s_orw                       # 切点在开区间
+    assert t.shock_speed == pytest.approx(secant, rel=1e-10)
+    assert t.slope == pytest.approx(secant, rel=1e-10)
+    assert df_dsw(t.swf, p) == pytest.approx(secant, rel=1e-9)
+
+    h = 1e-7
+    numeric = (fractional_flow(t.swf + h, p)
+               - fractional_flow(t.swf - h, p)) / (2 * h)
+    assert numeric == pytest.approx(secant, rel=1e-6)
+
+
+@pytest.mark.parametrize("p", UNEQUAL_EXPONENT_CASES)
+def test_rarefaction_xi_equals_df_dsw_with_unequal_exponents(p):
+    """幂次不相等时，激波后稀疏波每一点 ξ 都必须真等于该饱和度的 df/dSw，
+    且激波侧端点精确落在切点与激波速度上。"""
+    prof = solve_profile(p)
+    for pt in prof.rarefaction:
+        assert pt.xi == pytest.approx(df_dsw(pt.sw, p), rel=1e-9)
+    assert prof.rarefaction[-1].sw == pytest.approx(prof.swf)
+    assert prof.rarefaction[-1].xi == pytest.approx(prof.shock_speed)
+
+
 def test_tangent_point_in_open_interval(standard_params):
     t = find_welge_tangent(standard_params)
     p = standard_params
